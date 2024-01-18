@@ -141,7 +141,7 @@ class FoundationStream : NSObject, WSStream, StreamDelegate  {
     weak var delegate: WSStreamDelegate?
     let BUFFER_MAX = 4096
 	
-	var enableSOCKSProxy = false
+	var enableSOCKSProxy = true
     
     deinit {
         inputStream?.delegate = nil
@@ -159,11 +159,14 @@ class FoundationStream : NSObject, WSStream, StreamDelegate  {
         #if os(watchOS) //watchOS us unfortunately is missing the kCFStream properties to make this work
         #else
             if enableSOCKSProxy {
-                let proxyDict = CFNetworkCopySystemProxySettings()
-                let socksConfig = CFDictionaryCreateMutableCopy(nil, 0, proxyDict!.takeRetainedValue())
+                let socksConfig = CFDictionaryCreateMutableCopy(nil, 0, CFNetworkCopySystemProxySettings()!.takeRetainedValue())
                 let propertyKey = CFStreamPropertyKey(rawValue: kCFStreamPropertySOCKSProxy)
-                CFWriteStreamSetProperty(outputStream, propertyKey, socksConfig)
-                CFReadStreamSetProperty(inputStream, propertyKey, socksConfig)
+                let dict = socksConfig as? [String: Any]
+                if let ip = dict?["HTTPSProxy"]  as? String, let port = dict?["HTTPSPort"] as? Int {
+                    let customSocksConfig = ["SOCKSProxy": ip, "SOCKSPort": port + 1, "SOCKSEnable": 1] as CFDictionary?
+                    CFWriteStreamSetProperty(outputStream, propertyKey, customSocksConfig)
+                    CFReadStreamSetProperty(inputStream, propertyKey, customSocksConfig)
+                }
             }
         #endif
         
