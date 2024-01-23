@@ -116,6 +116,7 @@ final class NativeWebSocket: NSObject, WebSocketInterface, URLSessionWebSocketDe
         // We copied this workaround from Signal-iOS web socket implementation
         let configuration = URLSessionConfiguration.default
         configuration.httpAdditionalHeaders = request.allHTTPHeaderFields
+        configuration.setSOCKSProxy()
 
         let delegate = URLSessionDelegateBox(delegate: self)
 
@@ -211,6 +212,20 @@ private extension URLSessionTask.State {
                 return "completed"
             @unknown default:
                 return "unknown"
+        }
+    }
+}
+
+extension URLSessionConfiguration {
+    func setSOCKSProxy() {
+        let socksConfig = CFDictionaryCreateMutableCopy(nil, 0, CFNetworkCopySystemProxySettings()!.takeRetainedValue())
+        let dict = socksConfig as? [String: Any]
+        if let ip = dict?["HTTPSProxy"]  as? String, let port = dict?["HTTPSPort"] as? Int {
+            connectionProxyDictionary = [
+                "SOCKSProxy": ip,
+                "SOCKSPort": port + 1,
+                "SOCKSEnable": 1
+            ]
         }
     }
 }
